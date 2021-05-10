@@ -1,7 +1,31 @@
-import getopt
-import sys
-
+import argparse
 import pandas
+
+
+def merge_code_metrics(project):
+    format_code_metrics(project)
+    final_defect_record = create_defect_csv(project)
+
+    code_metrics_csv = f"{project}/{project}-code-metrics.csv"
+    code_metrics_df = pandas.read_csv(code_metrics_csv)
+    code_metrics_df = filtered_dataframe(code_metrics_df)
+    supported_code_metrics = ["entity", "McCC", "CLOC", "LLOC", "LOC"]
+
+    ml_ready_file = final_defect_record[["entity", "no_of_defects"]].merge(
+        code_metrics_df[supported_code_metrics], on="entity", how="left")
+
+    ml_ready_file.to_csv(f"{project}/{project}_ml_ready-code-metrics.csv", index=False)
+
+
+def format_code_metrics(project):
+    string_to_remove = f"C:/OutThere/School/Research-Data-Collection/Projects/{project}/"
+    code_metrics_file = f"{project}/{project}-File.csv"
+    code_metrics_df = pandas.read_csv(code_metrics_file)
+    code_metrics_df = code_metrics_df.rename(columns={"LongName": "entity"})
+
+    code_metrics_df['entity'] = code_metrics_df['entity'].str.replace(string_to_remove, "", regex=True)
+
+    code_metrics_df.to_csv(f"{project}/{project}-code-metrics.csv")
 
 
 def merge_process_metrics(project):
@@ -53,23 +77,10 @@ def create_defect_csv(project):
     return final_defect_record
 
 
-def evaluate_args():
-    argument_list = sys.argv[1:]
-    short_options = "hp:"
-    long_options = ["help", "project="]
-    try:
-        arguments, values = getopt.getopt(argument_list, short_options, long_options)
-    except getopt.error as err:
-        print(str(err))
-        sys.exit(2)
-    for current_argument, current_value in arguments:
-        if current_argument in ("-h", "--help"):
-            print("Usage: merge_code_metrics.py --project <project folder>")
-        elif current_argument in ("-p", "--project"):
-            return current_value
-
-
 if __name__ == '__main__':
-    project_name = evaluate_args()
-    if project_name:
-        merge_process_metrics(project_name)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--project')
+    args = parser.parse_args()
+
+    merge_code_metrics(args.project)
+    merge_process_metrics(args.project)
